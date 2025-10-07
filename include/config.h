@@ -2,16 +2,15 @@
 
 // -- konfig pin sensor dan aktuator --
 
-const int pin_servo = 13; // pin servo motor
+const int servo_pin = 13; // pin servo motor
 
-const int pin_trigger_kapasitas = 12; // pin trigger sensor ultrasonik
-const int pin_echo_kapasitas = 14; // pin echo sensor ultrasonik
+const int trigger_pin = 12; // pin trigger sensor ultrasonik
+const int echo_pin = 14; // pin echo sensor ultrasonik
+
+const int ir_pin = 27; // pin sensor infrared
 
 // -- konfig fisik dan logika --
+const unsigned long servo_duration = 5000; // dalam ms (5 detik)
 
-const int jarak_deteksi_tangan = 15; // dalam cm
-
-const unsigned long durasi_servo = 5000; // dalam ms (5 detik)
-
-const float kapasitas_tong = 50.0; // kalibrasi kapasitas tong dalam liter
-const float batas_tong = 5.0; // dalam liter, batas maksimal
+const float bin_capacity = 50.0; // tinggi fisik tong sampah (cm)
+const float bin_threshold = 5.0; // batas maksimal jarak (cm) untuk deteksi penuh
