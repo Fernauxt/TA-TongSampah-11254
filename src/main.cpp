@@ -1,36 +1,51 @@
+#define _DEBUG_
+
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include <WiFi.h>
+#include <ThingerESP32.h>
+#include <NewPing.h>
 #include "config.h"
 
-// -- inisialisasi objek
+// -- inisialisasi objek global
 Servo motorServo;
+ThingerESP32 thing(thinger_username, thinger_device_id, thinger_device_credential);
+NewPing sonar(trigger_pin, echo_pin, bin_capacity);
+
+// -- inisiasi variabel global
 unsigned long lidOpenTime = 0;
 bool statusServo = false; // false = tutup, true = buka
+int currentCapacity = 0; // kapasitas saat ini
 
 // -- fungsi helper
-float readDistance(int trigPin, int echoPin); // dalam cm
+// float readDistance(int trigPin, int echoPin); // dalam cm
 int countCapacityPercentage(float distance); // dalam %
 void openLid();
 void closeLid();
+void connectToWiFi();
 
 // -- fungsi setup
 void setup()
 {
   // Memulai komunikasi serial pada kecepatan 115200 bps
   Serial.begin(115200);
-  Serial.println("Inisialisasi Sistem Inti Tong Sampah Pintar...");
+  Serial.println("Inisialisasi Sistem Inti Tong Sampah Pintar (singular mode)...");
 
   // Beri jeda sedikit agar serial monitor siap
   delay(1000);
 
-  // Inisialisasi pin sensor
-  pinMode(trigger_pin, OUTPUT); // ultrasonik trigger
-  pinMode(echo_pin, INPUT); // ultrasonik echo
-  pinMode(ir_pin, INPUT_PULLUP); // infrared untuk deteksi tangan - aktivasi internal pull-down
-
-  // Inisialisasi servo motor
+  pinMode(ir_pin, INPUT_PULLUP);
   motorServo.attach(servo_pin);
-  closeLid(); // pastikan tertutup saat mulai
+  closeLid();
+
+  // Setup koneksi WiFi dan Thinger.io
+  Serial.println("Menghubungkan ke WiFi...");
+  connectToWiFi();
+  
+  // Setup Thinger.io resources
+  // char resourceName[32];
+  // sprintf(resourceName, "bin_capacity_%d", device_index);
+  thing["capacity"] >> outputValue(currentCapacity);
 
   Serial.println("=====================================");
   Serial.println("Setup Selesai. ESP32 siap.");
@@ -40,46 +55,46 @@ void setup()
 
 void loop()
 {
-  // Baca sensor tangan
-  int handDetection = digitalRead(ir_pin);
+  unsigned long currentMillis = millis();
 
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+  } else {
+    thing.handle(); // menangani komunikasi Thinger.io
+  }
 
   // logika buka tutup tong sampah
-  if (handDetection == LOW && !statusServo)
-  {
-    Serial.println("Tangan terdeteksi! Membuka tutup...");
+  if (digitalRead(ir_pin) == LOW && !statusServo)  {
+    Serial.println("Tangan terdeteksi! Membuka tong...");
     openLid();
     lidOpenTime = millis();
   }
 
   if (statusServo && (millis() - lidOpenTime >= servo_duration))
   {
-    Serial.println("Waktu habis. Menutup tutup...");
+    Serial.println("Waktu habis. Menutup tong...");
     closeLid();
   }
 
-  // logika kapasitas tong sampah
+  // logika kapasitas tong sampah -- serial monitor
   static unsigned long lastCapacityCheck = 0;
-  if (millis() - lastCapacityCheck >= 2000) // cek setiap 2 detik
-  {
-    float distance = readDistance(trigger_pin, echo_pin); // fungsi baca jarak
-
-    int capacityPercent = countCapacityPercentage(distance); // fungsi hitung kapasitas
-
-    if (handDetection == LOW)
-    {
-      Serial.print("HALANGAN");
+  if (currentMillis - lastCapacityCheck >= 2000)  {
+    lastCapacityCheck = currentMillis;
+    float distance = sonar.ping_cm(); // fungsi baca jarak
+    if (distance == 0) {
+      distance = bin_capacity; // jika tidak ada echo, anggap jarak di luar kapasitas
     }
-    else
-    {
-      Serial.print("AMAN");
-    }
-    Serial.print(" | "); // --> DIUBAH
+
+    currentCapacity = countCapacityPercentage(distance); // fungsi hitung kapasitas
+
+    Serial.print("Status IR: ");
+    Serial.print(digitalRead(ir_pin) == LOW ? "HALANGAN" : "AMAN");
+    Serial.print(" | ");
     Serial.print("Jarak Kapasitas: ");
     Serial.print(distance);
     Serial.print(" cm | ");
     Serial.print("Kapasitas Penuh: ");
-    Serial.print(capacityPercent);
+    Serial.print(currentCapacity);
     Serial.println(" %");
 
     if (distance <= bin_threshold)
@@ -87,8 +102,32 @@ void loop()
       Serial.println("Peringatan: Kapasitas tong sampah penuh!");
     }
 
-    lastCapacityCheck = millis();
+    lastCapacityCheck = currentMillis;
   }
+}
+
+void connectToWiFi()
+{
+  Serial.print("Menghubungkan ke SSID: ");
+  Serial.println(wifi_ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifi_ssid, wifi_password);
+
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    // Timeout setelah 10 detik
+    if (millis() - startAttemptTime > 10000) {
+      Serial.println("\nGagal terhubung ke WiFi. Periksa kredensial dan jangkauan sinyal.");
+      return;
+    }
+  }
+
+  Serial.println("\nTerhubung ke WiFi!");
+  Serial.print("Alamat IP: ");
+  Serial.println(WiFi.localIP());
 }
 
 // -- implementasi fungsi helper
