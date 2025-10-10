@@ -111,16 +111,31 @@ void loop()
       FirebaseJson json;
       json.set("capacity", capacityPercent);
       json.set("status", statusText);
+      json.set("timestamp", ".sv");
 
-      String dataPath = "/";
-      dataPath += device_id;
+      String devicePath = "/";
+      devicePath += device_id;
 
-      if (Firebase.setJSON(fbdo, dataPath.c_str(), json)) {
+      String current = devicePath;
+      current += "/current";
+
+      if (Firebase.setJSON(fbdo, current.c_str(), json)) {
         Serial.printf("Berhasil! Kapasitas: %d%%, Status: %s\n", capacityPercent, statusText.c_str());
       } else {
         Serial.print("Gagal kirim kapasitas: ");
         Serial.print(fbdo.errorReason());
       }
+
+      String history = devicePath;
+      history += "/history";
+      
+      if (Firebase.pushJSON(fbdo, history.c_str(), json)) {
+        Serial.println("  -> Riwayat telah disimpan");
+      } else {
+        Serial.print("  -> Gagal simpan riwayat: ");
+        Serial.print(fbdo.errorReason());
+      }
+
     } else {
       Serial.print("Firebase tidak siap atau koneksi terputus");
     }

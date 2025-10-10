@@ -5,8 +5,8 @@ const char *wifi_ssid = "ADVAN V1 PRO-8A105E";
 const char *wifi_pass = "R1caGorengzhu";
 
 // -- konfig firebase --
-#define firebase_url "https://smartbin-11254-v2-default-rtdb.asia-southeast1.firebasedatabase.app/"
-#define firebase_key "gmqQ6lamq9f9QuUteEZ49MlKEkMgs2ux8pfTR1eB"
+#define firebase_url "https://smart-trash-system-v54-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define firebase_key "Jnf7Zykov76fdiZg8UQaHejGgVvgQgH5ehNX18z8"
 
 // -- konfig perangkat --
 #define device_id "smartbin-01"
